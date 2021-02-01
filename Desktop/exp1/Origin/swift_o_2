@@ -1,0 +1,237 @@
+//
+//  ViewController.swift
+//  sensing
+//
+//  Created by ycchen on 2020/11/28.
+//
+
+import UIKit
+import sensinggo_lib
+import CoreLocation
+import CoreMotion
+import CoreTelephony
+import Network
+import SystemConfiguration.CaptiveNetwork
+class ViewController: UIViewController, CLLocationManagerDelegate {
+    //
+    let lm = CLLocationManager()
+    var mg = CMMotionManager()
+    public  let monitor = NWPathMonitor()
+    //
+    var s = sensorInfo()
+    var loc = Location()
+    var phinfo = PhoneInfo()
+    
+    var netstate = NetworkState()
+    var file_maker = fileMaker()
+    var send_Data = sendData()
+    var start = 0;
+    var end = 0;
+    var first_ = true;
+    var count = 0;
+    var type = 0;
+    var ROUND = 10 ;
+    
+    var wifi = WiFiInfo()
+    var cell = CellularInfo()
+    var pi = PhoneInfo()
+    var ps = PhoneInfo()
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // Do any additional setup after loading the view.
+       
+        var testTimer: Timer?
+        self.file_maker.makeFile_blank(val1: "")
+//        Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { timer in
+//
+//            if(self.type == 0){
+//                self.first_=true;
+//                self.start = Int(DispatchTime.now().uptimeNanoseconds);
+//                if self.mg.isAccelerometerAvailable  {
+//
+//                    self.mg.startAccelerometerUpdates(to: OperationQueue(), withHandler: {
+//                            (data, error) in
+//
+//                            self.end = Int(DispatchTime.now().uptimeNanoseconds);
+//                            self.mg.stopAccelerometerUpdates()
+//                            if(self.count == self.ROUND){
+//                              self.file_maker.makeFile(val1:"\n");
+//                              self.type = self.type + 1;
+//                                print(self.type)
+//                              self.count = 0;
+//                            }
+//                            if(self.first_ && self.type == 0){
+//                                self.first_=false;
+//                              // console.log("test_time_gg",(end-start));
+//                                self.file_maker.makeFile(val1: String((self.end-self.start)/1000000));
+//                                self.file_maker.makeFile(val1:",");
+//                                self.mg.stopAccelerometerUpdates();
+//                                self.count = self.count+1;
+//                            }
+//
+//                        })
+//                    } else {
+//                        print("The Accelerometer is not available")
+//                    }
+//
+//            }
+//            if(self.type == 1){
+//
+//                self.first_=true;
+//                self.start = Int(DispatchTime.now().uptimeNanoseconds);
+//                if self.mg.isMagnetometerAvailable {
+//
+//                    self.mg.startMagnetometerUpdates(to: OperationQueue(), withHandler: {
+//                            (data, error) in
+//
+//                            self.end = Int(DispatchTime.now().uptimeNanoseconds);
+//                            self.mg.stopMagnetometerUpdates()
+//                            if(self.count == self.ROUND){
+//                              self.file_maker.makeFile(val1:"\n");
+//                              self.type = self.type + 1;
+//                                print(self.type)
+//                              self.count = 0;
+//                            }
+//                            if(self.first_ && self.type == 1){
+//                                self.first_=false;
+//                              // console.log("test_time_gg",(end-start));
+//                                self.file_maker.makeFile(val1: String((self.end-self.start)/1000000));
+//                                self.file_maker.makeFile(val1:",");
+//                                self.mg.stopMagnetometerUpdates();
+//                                self.count = self.count+1;
+//                            }
+//
+//                        })
+//                    } else {
+//                        print("The Accelerometer is not available")
+//                    }
+//            }
+//
+//            if(self.type == 2){
+//                self.first_=true;
+//                self.start = Int(DispatchTime.now().uptimeNanoseconds);
+//                if self.mg.isGyroAvailable {
+//
+//                    self.mg.startGyroUpdates(to: OperationQueue(), withHandler: {
+//                            (data, error) in
+//
+//                            self.end = Int(DispatchTime.now().uptimeNanoseconds);
+//                            self.mg.stopGyroUpdates()
+//                            if(self.count == self.ROUND){
+//                              self.file_maker.makeFile(val1:"\n");
+//                              self.type = self.type + 1;
+//                                print(self.type)
+//                              self.count = 0;
+//                            }
+//                            if(self.first_ && self.type == 2){
+//                                self.first_=false;
+//                              // console.log("test_time_gg",(end-start));
+//                                self.file_maker.makeFile(val1: String((self.end-self.start)/1000000));
+//                                self.file_maker.makeFile(val1:",");
+//                                self.mg.stopGyroUpdates();
+//                                self.count = self.count+1;
+//                            }
+//
+//                        })
+//                    } else {
+//                        print("The Accelerometer is not available")
+//                    }
+//            }
+//            if(self.type == 3){
+//                print("hahah")
+//                self.first_=true;
+//                self.start = Int(DispatchTime.now().uptimeNanoseconds);
+//                self.lm.delegate = self
+//                self.lm.desiredAccuracy = kCLLocationAccuracyBest
+//                self.lm.requestWhenInUseAuthorization()
+//                self.lm.startUpdatingLocation()
+//
+//            }
+//
+//            if(self.type == 4){
+//                self.send_Data.send();
+//                self.type = self.type + 1;
+//            }
+//        }
+//        for index in 1...5 {
+//            var s_start = Int(DispatchTime.now().uptimeNanoseconds);
+//            var ssid: String?
+//            if let interfaces = CNCopySupportedInterfaces() as NSArray? {
+//                for interface in interfaces {
+//                    if let interfaceInfo = CNCopyCurrentNetworkInfo(interface as! CFString) as NSDictionary? {
+//                        ssid = interfaceInfo[kCNNetworkInfoKeySSID as String] as? String
+//                        break
+//                    }
+//                }
+//            }
+//            var s_end = Int(DispatchTime.now().uptimeNanoseconds);
+//            print("jjjjjj",s_end-s_start)
+//        }
+        
+//        for index in 1...5 {
+//            var s_start = Int(DispatchTime.now().uptimeNanoseconds);
+//            var networkInfo:CTTelephonyNetworkInfo
+//            var carrier:CTCarrier
+//            networkInfo = CTTelephonyNetworkInfo()
+//            carrier = networkInfo.subscriberCellularProvider!
+//            let mnc = carrier.mobileNetworkCode
+//            let carrierName = carrier.carrierName
+//            let mcc = carrier.mobileCountryCode
+//
+//            var s_end = Int(DispatchTime.now().uptimeNanoseconds);
+//            print("jjjjjj",s_end-s_start)
+//            print(mnc)
+//        }
+                for index in 1...5 {
+                    var s_end = 0
+                    var s_start = Int(DispatchTime.now().uptimeNanoseconds);
+                    
+                    monitor.start(queue: DispatchQueue.global())
+                    monitor.pathUpdateHandler = { path in
+                        s_end = Int(DispatchTime.now().uptimeNanoseconds);
+                        print(s_end-s_start)
+                        print( "wifi")
+                        print( "cellular",path.usesInterfaceType(.cellular))
+                        print("jsdj",path)
+                       if path.usesInterfaceType(.wifi) {
+                          print("cnnected")
+                          
+                          
+                       } else {
+                          print("no connection")
+                          
+                       }
+
+                    }
+        
+                    
+                    
+                  
+                }
+        
+      
+    }
+
+    public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if let location = locations.first{
+            self.end = Int(DispatchTime.now().uptimeNanoseconds);
+            self.lm.stopUpdatingLocation()
+            if(self.count == self.ROUND){
+              self.file_maker.makeFile(val1:"\n");
+              self.type = self.type + 1;
+              self.count = 0;
+            }
+        
+            if(self.first_ && self.type == 3){
+                self.first_=false;
+                
+                self.file_maker.makeFile(val1: String((self.end-self.start)/1000000));
+                self.file_maker.makeFile(val1:",");
+                self.loc.stop_loc()
+                self.count = self.count+1;
+            }
+         
+        }
+    }
+}
+

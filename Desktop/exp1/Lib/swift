@@ -1,0 +1,219 @@
+//
+//  ViewController.swift
+//  sensing
+//
+//  Created by ycchen on 2020/11/28.
+//
+
+import UIKit
+import sensinggo_lib
+
+class ViewController: UIViewController {
+
+    var s = sensorInfo()
+    var loc = Location()
+    var phinfo = PhoneInfo()
+    
+    var netstate = NetworkState()
+    var file_maker = fileMaker()
+    var send_Data = sendData()
+    var start = 0;
+    var end = 0;
+    var first_ = true;
+    var count = 0;
+    var type = 0;
+    var ROUND = 30 ;
+    
+    var wifi = WiFiInfo()
+    var cell = CellularInfo()
+    var pi = PhoneInfo()
+    var ps = PhoneInfo()
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // Do any additional setup after loading the view.
+        var a = netstate.getNetworkType()
+        print(a)
+        var testTimer: Timer?
+        self.file_maker.makeFile_blank(val1: "")
+        Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { timer in
+            if(self.type == 0){
+                self.first_=true;
+                self.start = Int(DispatchTime.now().uptimeNanoseconds);
+                self.s = sensorInfo()
+                self.s.getAccelerometerValues() { (X, Y, Z) -> () in
+//                        print(X,Y,Z)
+                    self.end = Int(DispatchTime.now().uptimeNanoseconds);
+                    self.s.stopAcc()
+                    if(self.count == self.ROUND){
+                      self.file_maker.makeFile(val1:"\n");
+                      self.type = self.type + 1;
+                        print(self.type)
+                      self.count = 0;
+                    }
+                    if(self.first_ && self.type == 0){
+                        self.first_=false;
+                      // console.log("test_time_gg",(end-start));
+                        self.file_maker.makeFile(val1: String((self.end-self.start)/1000000));
+                        self.file_maker.makeFile(val1:",");
+                        self.s.stopAcc()
+                        self.count = self.count+1;
+                    }
+                }
+            }
+            if(self.type == 1){
+                
+                self.first_=true;
+                self.start = Int(DispatchTime.now().uptimeNanoseconds);
+                self.s = sensorInfo()
+                self.s.getMagnetometerValues() { (X, Y, Z) -> () in
+//                        print(X,Y,Z)
+                    self.end = Int(DispatchTime.now().uptimeNanoseconds);
+                    self.s.stopMag()
+                    if(self.count == self.ROUND){
+                      self.file_maker.makeFile(val1:"\n");
+                      self.type = self.type + 1;
+                        print(self.type)
+                      self.count = 0;
+                    }
+                    if(self.first_ && self.type == 1){
+                        self.first_=false;
+                      // console.log("test_time_gg",(end-start));
+                        self.file_maker.makeFile(val1: String((self.end-self.start)/1000000));
+                        self.file_maker.makeFile(val1:",");
+                        self.s.stopMag()
+                        self.count = self.count+1;
+                    }
+                }
+            }
+//            if(self.type == 2){
+//                self.first_=true;
+//
+//                self.start = Int(DispatchTime.now().uptimeNanoseconds)/1000000;
+//                self.s = sensorInfo()
+//                self.s.getAltitudeValues() { (X, Y) -> () in
+////                        print(X,Y,Z)
+//                    print(self.type)
+//                    self.end = Int(DispatchTime.now().uptimeNanoseconds)/1000000;
+//                    self.s.stopAlt()
+//                    if(self.count == self.ROUND){
+//                      self.file_maker.makeFile(val1:"\n");
+//                      self.type = self.type + 1;
+//                      self.count = 0;
+//                    }
+//                    if(self.first_ && self.type == 2){
+//                        self.first_=false;
+//                      // console.log("test_time_gg",(end-start));
+//                        self.file_maker.makeFile(val1: String(self.end-self.start));
+//                        self.file_maker.makeFile(val1:",");
+//                        self.s.stopAlt()
+//                        self.count = self.count+1;
+//                    }
+//                }
+//            }
+            if(self.type == 2){
+                self.first_=true;
+                self.start = Int(DispatchTime.now().uptimeNanoseconds);
+                self.s = sensorInfo()
+                
+                self.s.getGyroscopeValues() { (X, Y, Z) -> () in
+//                        print(X,Y,Z)
+                    self.end = Int(DispatchTime.now().uptimeNanoseconds);
+                    self.s.stopGyro()
+                    if(self.count == self.ROUND){
+                      self.file_maker.makeFile(val1:"\n");
+                      self.type = self.type + 1;
+                      
+                      self.count = 0;
+                    }
+                    if(self.first_ && self.type == 2){
+                        self.first_=false;
+                      // console.log("test_time_gg",(end-start));
+                        self.file_maker.makeFile(val1: String((self.end-self.start)/1000000));
+                        self.file_maker.makeFile(val1:",");
+                        self.s.stopGyro()
+                        self.count = self.count+1;
+                    }
+                }
+            }
+            if(self.type == 3){
+                print("hahah")
+                self.first_=true;
+                self.start = Int(DispatchTime.now().uptimeNanoseconds);
+                self.loc = Location()
+                self.loc.getLocation(action: { (a, b) in
+//                        print(X,Y,Z)
+                    self.end = Int(DispatchTime.now().uptimeNanoseconds);
+                    self.loc.stop_loc()
+                    if(self.count == self.ROUND){
+                      self.file_maker.makeFile(val1:"\n");
+                      self.type = self.type + 1;
+                      self.count = 0;
+                    }
+                
+                    if(self.first_ && self.type == 3){
+                        self.first_=false;
+                        
+                        self.file_maker.makeFile(val1: String((self.end-self.start)/1000000));
+                        self.file_maker.makeFile(val1:",");
+                        self.loc.stop_loc()
+                        self.count = self.count+1;
+                    }
+                })
+            }
+           
+            if(self.type == 4){
+                self.send_Data.send();
+                self.type = self.type + 1;
+            }
+        }
+//        var s_start = Int(DispatchTime.now().uptimeNanoseconds);
+//        pi.receiveBatteryLevel()
+//        var s_end = Int(DispatchTime.now().uptimeNanoseconds);
+//        print(s_end-s_start)
+
+//
+//        s.getMagnetometerValues() { (X, Y, Z) -> () in
+//            DispatchQueue.main.async {
+////                print(X,Y,Z)
+//                
+//            }
+//        }
+//        s.getGyroscopeValues() { (X, Y, Z) -> () in
+//            DispatchQueue.main.async {
+////                print(X,Y,Z)
+//                
+//            }
+//        }
+//        s.getAltitudeValues() { (altitude, pressure) -> () in
+//            DispatchQueue.main.async {
+////                print(altitude,pressure)
+//                
+//            }
+//        }
+//        loc = Location(action: { (a, b) in
+//            print("fff",a,b)
+//        })
+
+//        loc.getLocation() { (ll, la) -> () in
+//            DispatchQueue.main.async {
+//             print(ll,la)
+//
+//            }
+//        }
+//        phinfo.receiveBatteryLevel()
+//        print(netstate.getNetworkType())
+//        print(netstate.status())
+//        DataListener(){
+//            override func onDataReceived(){
+//
+//            }
+//        }
+//        print("wifi wifi wifi ",wifi.getWiFiInfo())
+//        print("wifi wifi wifi ",wifi.getWifiStrength())
+        
+      
+    }
+
+    
+}
+

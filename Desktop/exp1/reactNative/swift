@@ -1,0 +1,206 @@
+import * as React from 'react';
+import { NativeEventEmitter, StyleSheet, View, Text, TouchableOpacity, PermissionsAndroid } from 'react-native';
+import Sensinggo from 'sensinggo';
+
+export default function App() {
+  const [result, setResult] = React.useState<number | undefined>();
+  
+  const requestCameraPermission = async () => {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: "Cool Photo App Camera Permission",
+          message:
+          "Cool Photo App needs access to your camera " +
+          "so you can take awesome pictures.",
+          buttonNeutral: "Ask Me Later",
+          buttonNegative: "Cancel",
+          buttonPositive: "OK"
+        }
+      );
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        console.log("You can use the camera");
+      } else {
+        console.log("Camera permission denied");
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  React.useEffect(() => {
+    Sensinggo.multiply(11, 9).then(setResult);
+  }, []);
+  // Sensinggo.getMagnetometer();
+  
+  // Sensinggo.WiFiInfo().then(function (fulfilled) {
+  //   console.log("ggg servingChan",fulfilled["servingChan"]);
+  // })
+  // .catch(function (error) {
+  //   console.log(error.message)
+  // })
+  requestCameraPermission();
+  console.log("ggg ggg");
+
+  timesRun = 0;
+  first_= true;
+
+  let timer;
+  type = 0;
+  count = 0;
+  ROUND = 2 ;
+  Sensinggo.write_blank();
+  timer = setInterval(() => { 
+    
+    if(type == 0){
+      console.log("test_time_gg","type0");
+      first_=true;
+      start = Date.now();
+      Sensinggo.getAccelerometer();
+      const eventEmitter = new NativeEventEmitter(Sensinggo);
+      this.eventListener = eventEmitter.addListener('acc', (event) => {
+        // console.log("test_time_gg",event.X);
+        end = Date.now();
+        if(count == ROUND){
+          Sensinggo.write_("\n");
+          console.log("type",type);
+          type = type + 1;
+          count = 0;
+        }
+        if(first_ && type == 0){   
+          first_=false;
+          // console.log("test_time_gg",(end-start));
+          Sensinggo.write_((end-start)+"");
+          Sensinggo.write_(",");
+          Sensinggo.stopAcc();
+          count = count+1;
+        }
+      });
+      
+    }
+    if(type == 1){
+      console.log("test_time_gg","type0");
+      first_=true;
+      start = Date.now();
+      Sensinggo.getMagnetometer();
+      const eventEmitter = new NativeEventEmitter(Sensinggo);
+      this.eventListener = eventEmitter.addListener('mag', (event) => {
+        // console.log("test_time_gg",event.X);
+        end = Date.now();
+        if(count == ROUND){
+          Sensinggo.write_("\n");
+          console.log("type",type);
+          type = type + 1;
+          count = 0;
+        }
+        if(first_ && type == 1){   
+          first_=false;
+          // console.log("test_time_gg",(end-start));
+          Sensinggo.write_((end-start)+"");
+          Sensinggo.write_(",");
+          Sensinggo.stopMag();
+          count = count+1;
+        }
+      });
+      
+    }
+    if(type == 2){
+      console.log("test_time_gg","type0");
+      first_=true;
+      start = Date.now();
+      Sensinggo.getAltitude();
+      const eventEmitter = new NativeEventEmitter(Sensinggo);
+      this.eventListener = eventEmitter.addListener('alt', (event) => {
+        // console.log("test_time_gg",event.X);
+        end = Date.now();
+        if(count == ROUND){
+          Sensinggo.write_("\n");
+          console.log("type",type);
+          type = type + 1;
+          count = 0;
+        }
+        if(first_ && type == 2){   
+          first_=false;
+          // console.log("test_time_gg",(end-start));
+          Sensinggo.write_((end-start)+"");
+          Sensinggo.write_(",");
+          Sensinggo.stopAlt();
+          count = count+1;
+        }
+      });
+    }
+    if(type == 3){
+      console.log("test_time_gg","type0");
+      first_=true;
+      start = Date.now();
+      Sensinggo.getGyroscope();
+      const eventEmitter = new NativeEventEmitter(Sensinggo);
+      this.eventListener = eventEmitter.addListener('gyro', (event) => {
+        // console.log("test_time_gg",event.X);
+        end = Date.now();
+        if(count == ROUND){
+          Sensinggo.write_("\n");
+          console.log("type",type);
+          type = type + 1;
+          count = 0;
+        }
+        if(first_ && type == 3){   
+          first_=false;
+          // console.log("test_time_gg",(end-start));
+          Sensinggo.write_((end-start)+"");
+          Sensinggo.write_(",");
+          Sensinggo.stopGyro();
+          count = count+1;
+        }
+      });
+    }
+    if(type == 4){
+      console.log("test_time_gg","type0");
+      first_=true;
+      start = Date.now();
+      Sensinggo.location();
+      const eventEmitter = new NativeEventEmitter(Sensinggo);
+      this.eventListener = eventEmitter.addListener('loc', (event) => {
+        // console.log("test_time_gg",event.X);
+        end = Date.now();
+        if(count == ROUND){
+          Sensinggo.write_("\n");
+          console.log("type",type);
+          type = type + 1;
+          count = 0;
+        }
+        if(first_ && type == 4){   
+          first_=false;
+          // console.log("test_time_gg",(end-start));
+          Sensinggo.write_((end-start)+"");
+          Sensinggo.write_(",");
+          Sensinggo.location_stop();
+          count = count+1;
+        }
+      });
+    }
+    if(type == 5){
+      Sensinggo.send();
+    }
+    
+  }, 5000);
+     
+  setTimeout(()=>{
+    clearInterval(timer);
+    }, 100000);
+ 
+  return (
+    <View style={styles.container}>
+      <Text>Restyy: {result}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

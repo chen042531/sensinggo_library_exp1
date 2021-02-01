@@ -1,0 +1,908 @@
+package com.example.sensor;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import android.Manifest;
+import android.app.Activity;
+import android.app.ActivityManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkInfo;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import android.os.AsyncTask;
+import android.os.BatteryManager;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.HardwarePropertiesManager;
+import android.os.Looper;
+import android.telephony.CellInfo;
+import android.telephony.CellInfoLte;
+import android.telephony.CellInfoWcdma;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
+import android.util.Log;
+import android.widget.TextView;
+
+import com.example.sensing.Data.SGData;
+import com.example.sensing.FileMaker.writeFile;
+import com.example.sensing.FileSender.sendData;
+import com.example.sensing.Measurement.CellularInfo;
+import com.example.sensing.Data.DataListener;
+import com.example.sensing.Measurement.LocationInfo;
+import com.example.sensing.Measurement.NetworkState;
+import com.example.sensing.Measurement.PhoneInfo;
+import com.example.sensing.Measurement.PhoneState;
+import com.example.sensing.Measurement.WiFiInfo;
+import com.example.sensing.Measurement.SensorInfo;
+import com.example.sensing.SensingGO;
+
+import org.json.JSONException;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.RandomAccessFile;
+import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
+
+import static android.os.BatteryManager.EXTRA_PLUGGED;
+import static android.telephony.PhoneStateListener.LISTEN_CALL_STATE;
+
+public class MainActivity extends AppCompatActivity {
+
+    //
+    private long curTestTime = 0, preTestTime = 0;
+    private List<CellInfo> cellInfoList;
+    private WeakReference<Context> serviceContext;
+
+    //CellInfoType (LTE or Wcdma)
+    public static String cellInfoType;
+
+    public static int PreAtCellID;
+
+    //LTE info
+    public static int lteCellRSRP, lteCellID, lteCellMCC, lteCellMNC, lteCellPCI, lteCellTAC, lteCellRSSI, lteCellRSRQ, lteCellRSSNR;
+    public static long cellTimeInterval;
+
+    //Wcdma info
+    public static int wcdmaAtCellPsc, wcdmaAtCellLac, wcdmaAtCellID, wcdmaAtCellMCC, wcdmaAtCellMNC, wcdmaAtCellSignalStrength;
+
+    public static int passCellNum = 0;
+    public static int nowCellID = 0;
+    public static long stayCellAt = 0, cellHoldTime = 0;
+    public static double avgCellResidenceTime = 0, avgCellHoldTime, ttlCellResidenceTime = 0;
+    public static double electricity;
+    public static int health = 0;
+    public static int icon_small = 0;
+    public static int level = 0;
+    public static int lastLevel = -1;
+    public static double lastElect = -1;
+    public static int plugged = 0;
+    public static boolean present = false;
+    public static int scale = 0;
+    public static int status = 0;
+    public static String technology = "0";
+    public static String tmp;
+    public static double temperature = 0.0;
+    public static int voltage = 0;
+    public static String screen_state = "on";
+
+    public static String phoneState = "IDLE"; //IDLE, OFFHOOK, RINGING
+    public static String callState = "IDLE"; //Callout, ""Callin"", RINGING
+    public static String callID = "null";
+    public static String startCallTime, endCallTime;
+
+    public static int callNum = 0, callExcessNum = 0;
+    public static long callStartAt = 0, callHoldingTime = 0, excessLife = 0;
+    public static double avgCallHoldTime = 0, avgExcessLife = 0;
+    public static double ttlCallHoldTime = 0, ttlExcessLife = 0;
+    public static boolean FirstCallCell = false;
+
+    SimpleDateFormat sdf;
+    Date LogDate;
+    private TelephonyManager teleManger;
+
+    private static Date LogTime;
+    private static SimpleDateFormat logTimeSdf = new SimpleDateFormat("HH:mm:ss:SSS");
+    //
+
+
+    private SensorManager sensorManager;
+    private SensorInfo sr;
+    private LocationInfo location;
+    private WiFiInfo wifiinfo;
+    private CellularInfo cell;
+    private NetworkState networkstate;
+    //    private PhoneState phoneState;
+    private PhoneInfo phoneInfo;
+    private CellularInfo cellularInfo;
+    public TextView text;
+
+    public HardwarePropertiesManager hardwarePropertiesManager;
+
+    public static long start, end, test_time;
+    public static boolean first_time_flag = true;
+
+    public ConnectivityManager connectivityManager;
+
+    public String Network_type = null;
+
+
+    private Network nw;
+    private NetworkCapabilities actNw;
+    private NetworkInfo nwInfo;
+    private Handler taskHandler;
+    private Runnable repeatativeTaskRunnable;
+    private Context mContext;
+
+    private int type = 0;
+    private int count = 0;
+    private int ROUND = 10;
+    private boolean first_ = false;
+    private writeFile write_file;
+    private SensorManager sm;
+    private LocationManager locationManager;
+    private TelephonyManager teleManager;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        mContext = this;
+        int PERMISSION_ALL = 1;
+        String[] PERMISSIONS = {
+                android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+        };
+
+        if (!hasPermissions(this, PERMISSIONS)) {
+            ActivityCompat.requestPermissions(this, PERMISSIONS, PERMISSION_ALL);
+        }
+        try {
+            write_file = new writeFile(this);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+//        sr =  new SensorInfo(this);
+//        final TextView tv1 = (TextView)findViewById(R.id.textView2);
+//
+//        sr.startService(new DataListener(sr,tv1){
+//            @Override
+//            public void onDataReceived() {
+//
+//                Log.i("mainsensor", "sensor_dddd: "+sr.magneticValues[0]);
+//                String s = String.valueOf(sr.magneticValues[0]);
+//                tv1.setText(s);
+//            }
+//        },1000);
+
+
+//
+//        SGData sdata = new SGData();
+//        try {
+//            Log.i("SGData",sdata.getSGData().toString());
+//        } catch (IllegalAccessException e) {
+//            e.printStackTrace();
+//        } catch (JSONException e) {
+//            e.printStackTrace();
+//        }
+//        try {
+//            writeFile write_file = new writeFile(this);
+//            write_file.setUserID("user6");
+//            write_file.write(sdata);
+//            write_file.write(sdata);
+//            write_file.write(sdata);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        sendData s = new sendData(this);
+//        s.setUserID("user6");
+//        s.execute();
+        ///////////test
+
+        taskHandler = new Handler();
+
+
+        repeatativeTaskRunnable = new Runnable() {
+            public void run() {
+                //DO YOUR THINGS
+                if (type == 0) {
+
+                    first_ = true;
+                    start = System.currentTimeMillis();
+                    sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+                    int sensorType = Sensor.TYPE_ACCELEROMETER;
+                    final SensorEventListener myAccelerometerListener = new SensorEventListener() {
+
+
+                        public void onSensorChanged(SensorEvent sensorEvent) {
+                            if (sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+                                end = System.currentTimeMillis();
+
+                                if (count == ROUND) {
+
+                                    try {
+                                        write_file.write_testTime("time_lib", "\n");
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+
+                                    type = type + 1;
+                                    count = 0;
+                                }
+                                if (first_ && type == 0) {
+                                    first_ = false;
+                                    Log.i("test_time", String.valueOf(test_time));
+                                    try {
+                                        write_file.write_testTime("time_lib", (end - start) + "");
+                                        write_file.write_testTime("time_lib", ",");
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                    sm.unregisterListener(this);
+                                    count = count + 1;
+                                }
+                            }
+                        }
+
+                        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+                        }
+                    };
+                    sm.registerListener(myAccelerometerListener, sm.getDefaultSensor(sensorType), SensorManager.SENSOR_DELAY_FASTEST);
+
+
+                }
+                if (type == 1) {
+
+                    first_ = true;
+                    start = System.currentTimeMillis();
+                    sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+                    int sensorType = Sensor.TYPE_MAGNETIC_FIELD;
+                    final SensorEventListener magListener = new SensorEventListener() {
+
+
+                        public void onSensorChanged(SensorEvent sensorEvent) {
+                            if (sensorEvent.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+                                end = System.currentTimeMillis();
+
+                                if (count == ROUND) {
+
+                                    try {
+                                        write_file.write_testTime("time_lib", "\n");
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+
+                                    type = type + 1;
+                                    count = 0;
+                                }
+                                if (first_ && type == 1) {
+                                    first_ = false;
+                                    Log.i("test_time", String.valueOf(test_time));
+                                    try {
+                                        write_file.write_testTime("time_lib", (end - start) + "");
+                                        write_file.write_testTime("time_lib", ",");
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                    sm.unregisterListener(this);
+                                    count = count + 1;
+                                }
+                            }
+                        }
+
+                        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+                        }
+                    };
+                    sm.registerListener(magListener, sm.getDefaultSensor(sensorType), SensorManager.SENSOR_DELAY_FASTEST);
+
+                }
+                if (type == 2) {
+
+                    first_ = true;
+                    start = System.currentTimeMillis();
+                    sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+                    int sensorType = Sensor.TYPE_LIGHT;
+                    final SensorEventListener myAccelerometerListener = new SensorEventListener() {
+
+
+                        public void onSensorChanged(SensorEvent sensorEvent) {
+                            end = System.currentTimeMillis();
+                            if (sensorEvent.sensor.getType() == Sensor.TYPE_LIGHT) {
+
+
+                                if (count == ROUND) {
+
+                                    try {
+                                        write_file.write_testTime("time_lib", "\n");
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+
+                                    type = type + 1;
+                                    count = 0;
+                                }
+                                if (first_ && type == 2) {
+                                    first_ = false;
+//                                    Log.i("test_time", String.valueOf(test_time));
+                                    try {
+                                        write_file.write_testTime("time_lib", (end - start) + "");
+                                        write_file.write_testTime("time_lib", ",");
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                    sm.unregisterListener(this);
+                                    count = count + 1;
+                                }
+                            }
+                        }
+
+                        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+                        }
+                    };
+                    sm.registerListener(myAccelerometerListener, sm.getDefaultSensor(sensorType), SensorManager.SENSOR_DELAY_FASTEST);
+
+                }
+                if (type == 3) {
+                    first_ = true;
+                    start = System.currentTimeMillis();
+                    sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+                    int sensorType = Sensor.TYPE_PROXIMITY;
+                    final SensorEventListener myAccelerometerListener = new SensorEventListener() {
+
+
+                        public void onSensorChanged(SensorEvent sensorEvent) {
+                            if (sensorEvent.sensor.getType() == Sensor.TYPE_PROXIMITY) {
+                                end = System.currentTimeMillis();
+
+                                if (count == ROUND) {
+
+                                    try {
+                                        write_file.write_testTime("time_lib", "\n");
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+
+                                    type = type + 1;
+                                    count = 0;
+                                }
+                                if (first_ && type == 3) {
+                                    first_ = false;
+                                    Log.i("test_time", String.valueOf(test_time));
+                                    try {
+                                        write_file.write_testTime("time_lib", (end - start) + "");
+                                        write_file.write_testTime("time_lib", ",");
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                    sm.unregisterListener(this);
+                                    count = count + 1;
+                                }
+                            }
+                        }
+
+                        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+                        }
+                    };
+                    sm.registerListener(myAccelerometerListener, sm.getDefaultSensor(sensorType), SensorManager.SENSOR_DELAY_FASTEST);
+
+                }
+//                if (type == 1) {
+//                    first_ = true;
+//                    start = System.currentTimeMillis();
+//                    Log.i("locationonLocationChanged_statrr", "onLocationChangedonLocationChanged");
+//                    locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+//
+//                    final LocationListener lListener = new LocationListener() {
+//
+//                        @Override
+//                        public void onLocationChanged(Location location) {
+//                            end = System.currentTimeMillis();
+//                            Log.i("locationonLocationChanged", "____onLocationChangedonLocationChanged");
+//                            if (count == ROUND) {
+//
+//                                try {
+//                                    write_file.write_testTime("time_lib", "\n");
+//                                } catch (IOException e) {
+//                                    e.printStackTrace();
+//                                }
+//
+//                                type = type + 1;
+//                                count = 0;
+//                            }
+//                            if (first_ && type == 1) {
+//                                first_ = false;
+//                                Log.i("test_time", "___String.valueOf(test_time)");
+//                                try {
+//                                    write_file.write_testTime("time_lib", (end - start) + "");
+//                                    write_file.write_testTime("time_lib", ",");
+//                                } catch (IOException e) {
+//                                    e.printStackTrace();
+//                                }
+//                                locationManager.removeUpdates(this);
+//                                ;
+//                                count = count + 1;
+//                            }
+//
+//                        }
+//
+//                        @Override
+//                        public void onStatusChanged(String provider, int status, Bundle extras) {
+//
+//                        }
+//
+//                        @Override
+//                        public void onProviderEnabled(String provider) {
+//
+//                        }
+//
+//                        @Override
+//                        public void onProviderDisabled(String provider) {
+//
+//                        }
+//                    };
+//                    if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+//                        Location userlocationG = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+//                        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, lListener, Looper.getMainLooper());
+//                        Log.i("test_time","locationlocation");
+//                    }
+//
+//
+//
+//                }
+                if(type == 4){
+                    first_=true;
+                    start = System.currentTimeMillis();
+                    teleManager = (TelephonyManager)getSystemService(Context.TELEPHONY_SERVICE);
+                    final PhoneStateListener PSListener = new PhoneStateListener() {
+                        @Override
+                        public void onSignalStrengthsChanged(final android.telephony.SignalStrength signalstrength) {
+                            end = System.currentTimeMillis();
+                            curTestTime = System.currentTimeMillis();
+                            //Log.d(TagName, "curTestTime:" + curTestTime);
+                            if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                                cellInfoList = teleManager.getAllCellInfo();
+                            }
+
+
+                            if (cellInfoList != null) {
+                                for (CellInfo cellInfo : cellInfoList) {
+                                    if (cellInfo.isRegistered()) {
+                                        /**
+                                         *  Make sure the cellInfo is from 3g or 4g phone
+                                         *  We do not consider the 2g case
+                                         */
+                                        if (cellInfo instanceof CellInfoLte) {
+                                            String oneCellInfo = cellInfo.toString();
+                                            String[] cellInfoParts = oneCellInfo.split(" ");
+                                            Log.d("cellInfoParts", ": " + cellInfoParts);
+                                            for (String str : cellInfoParts) {
+                                                String[] part = str.split("=");
+                                                if (part.length != 0 && part[0].compareTo("rsrq") == 0) {
+                                                    lteCellRSRQ = Integer.valueOf(part[1]);
+                                                }
+                                            }
+                                            Log.d("012418: ", "LTE RSRQ " + lteCellRSRQ);
+                                            Log.d("bbbbb: ", "LTE RSRQ " + nowCellID+","+ passCellNum+","+ stayCellAt+","+ ttlCellResidenceTime+",");
+
+
+                                            //Log.d(TagName, "LTE cellinfo");
+                                            cellInfoType = "LTE";
+
+                                            /* cast to CellInfoLte and call all the CellInfoLte methods you need */
+                                            // gets signal strength as dBm
+                                            lteCellRSRP = ((CellInfoLte) cellInfo).getCellSignalStrength().getDbm();
+
+                                            // Gets the LTE cell identity: (returns 28-bit Cell Identity, Integer.MAX_VALUE if unknown)
+                                            lteCellID = ((CellInfoLte) cellInfo).getCellIdentity().getCi();
+                                            // Gets the LTE MCC: (returns 3-digit Mobile Country Code, 0..999, Integer.MAX_VALUE if unknown)
+                                            lteCellMCC = ((CellInfoLte) cellInfo).getCellIdentity().getMcc();
+
+                                            // Gets theLTE MNC: (returns 2 or 3-digit Mobile Network Code, 0..999, Integer.MAX_VALUE if unknown)
+                                            lteCellMNC = ((CellInfoLte) cellInfo).getCellIdentity().getMnc();
+
+                                            // Gets the LTE PCI: (returns Physical Cell Id 0..503, Integer.MAX_VALUE if unknown)
+                                            lteCellPCI = ((CellInfoLte) cellInfo).getCellIdentity().getPci();
+
+                                            // Gets the LTE TAC: (returns 16-bit Tracking Area Code, Integer.MAX_VALUE if unknown)
+                                            lteCellTAC = ((CellInfoLte) cellInfo).getCellIdentity().getTac();
+
+
+                                        } else if (cellInfo instanceof CellInfoWcdma) {
+                                            cellInfoType = "Wcdma";
+
+                                            wcdmaAtCellSignalStrength = ((CellInfoWcdma) cellInfo).getCellSignalStrength().getDbm();
+
+                                            wcdmaAtCellID = ((CellInfoWcdma) cellInfo).getCellIdentity().getCid();
+
+                                            wcdmaAtCellMCC = ((CellInfoWcdma) cellInfo).getCellIdentity().getMcc();
+
+                                            wcdmaAtCellMNC = ((CellInfoWcdma) cellInfo).getCellIdentity().getMnc();
+
+                                            wcdmaAtCellPsc = ((CellInfoWcdma) cellInfo).getCellIdentity().getPsc();
+
+                                            wcdmaAtCellLac = ((CellInfoWcdma) cellInfo).getCellIdentity().getLac();
+
+
+                                        } else {
+                                            // others, e.g. 2g
+                                            // it's not used in most of the country
+                                        }
+                                        cellTimeInterval = curTestTime - preTestTime;
+                                        preTestTime = curTestTime;
+
+                                        if (cellInfoType.equals("LTE") && lteCellID!=nowCellID ) {
+
+                                        } else if (cellInfoType.equals("Wcdma") && wcdmaAtCellID!=nowCellID) {
+
+                                        }
+                                    }
+
+                                }
+                            }
+
+//                            Log.i("locationonLocationChanged", "onLocationChangedonLocationChanged");
+                            if(count == ROUND){
+
+                                try {
+                                    write_file.write_testTime("time_lib","\n");
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+
+                                type = type + 1;
+                                count = 0;
+                            }
+                            if(first_ && type==4){
+                                first_=false;
+                                Log.i("test_time", String.valueOf(test_time));
+                                try {
+                                    write_file.write_testTime("time_lib",(end-start)+"");
+                                    write_file.write_testTime("time_lib",",");
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                                teleManager.listen(this, CellularInfo.LISTEN_NONE);
+                                count = count+1;
+                            }
+                        }
+                    };
+                    teleManager.listen(PSListener, CellularInfo.LISTEN_SIGNAL_STRENGTHS);
+                }
+                if(type == 5){
+                    first_=true;
+                    start = System.currentTimeMillis();
+                    IntentFilter intentFilter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+                    intentFilter.addAction(Intent.ACTION_SCREEN_OFF);
+                    intentFilter.addAction(Intent.ACTION_BATTERY_CHANGED);
+                    final BroadcastReceiver piBroadcastReceiver = new BroadcastReceiver() {
+
+                        @Override
+                        public void onReceive(Context context, Intent intent) {
+                            end = System.currentTimeMillis();
+                            health = intent.getIntExtra(BatteryManager.EXTRA_HEALTH, 0);
+                            icon_small = intent.getIntExtra(BatteryManager.EXTRA_ICON_SMALL, 0);
+                            level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0);
+                            plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0);
+                            present = Objects.requireNonNull(intent.getExtras()).getBoolean(BatteryManager.EXTRA_PRESENT);
+                            scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 0);
+                            status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, 0);
+                            technology = intent.getExtras().getString(BatteryManager.EXTRA_TECHNOLOGY);
+                            temperature = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) * 0.1;
+                            tmp = String.valueOf(intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) * 0.1);
+                            electricity = level / (double)scale * 100;
+                            voltage = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 10);
+                            Log.i("onBattery", String.valueOf(electricity));
+                            Log.i("onBattery", String.valueOf(temperature));
+
+                            String action = intent.getAction();
+                            if (Intent.ACTION_SCREEN_ON.equals(action)) {
+                                screen_state = "on";
+                            }
+                            else if (Intent.ACTION_SCREEN_OFF.equals(action)) {
+                                screen_state = "off";
+                            }
+                            Log.i("onBattery", String.valueOf(screen_state));
+
+
+                            if(count == ROUND){
+
+                                try {
+                                    write_file.write_testTime("time_lib","\n");
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+
+                                type = type + 1;
+                                count = 0;
+                            }
+                            if(first_ && type==5){
+                                first_=false;
+                                Log.i("test_time", "phoneInfoPhoneInfo");
+                                try {
+                                    write_file.write_testTime("time_lib",(end-start)+"");
+                                    write_file.write_testTime("time_lib",",");
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                                getApplicationContext().unregisterReceiver(this);
+                                count = count+1;
+                            }
+                        }
+                    };
+                    getApplicationContext().registerReceiver(piBroadcastReceiver, intentFilter);
+
+
+                }
+                if(type == 6){
+                    first_=true;
+                    start = System.currentTimeMillis();
+                    teleManger = (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
+                    final PhoneStateListener psPhoneStateListener = new PhoneStateListener() {
+                        @Override
+                        public void onCallStateChanged(final int state, String incomingNumber) {
+                            end = System.currentTimeMillis();
+                            super.onCallStateChanged(state, incomingNumber);
+//                            Log.i("t", "s");
+                            //Writing file in new thread 2018/10/07
+
+
+                            new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    LogTime = new Date();
+                                    LogDate = new Date();
+                                    sdf = new SimpleDateFormat("yyyyMMddHHmm");
+                                    logTimeSdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS");
+                                    switch (state) {
+                                        case TelephonyManager.CALL_STATE_IDLE:
+                                            // OFFHOOK: At least one call exists that is dialing, active, or on hold, and no calls are ringing or waiting.
+                                            if (phoneState.equals("OFFHOOK")) {
+                                                callHoldingTime = System.currentTimeMillis() - callStartAt;
+                                                ttlCallHoldTime = ttlCallHoldTime + callHoldingTime;
+                                            }
+                                            phoneState = "IDLE";
+                                            phoneState = "IDLE";
+                                            callState = "IDLE";
+                                            FirstCallCell = false;
+                                            endCallTime = logTimeSdf.format(LogDate);
+                                            Log.i("phoneState","IDLE");
+//                        FileMaker.write(JsonParser.phoneStateToJson(serviceContext.get()));
+                                            break;
+
+                                        case TelephonyManager.CALL_STATE_OFFHOOK:
+                                            if (phoneState.equals("IDLE")) {
+                                                callState = "Callout";
+                                                Log.i("phoneState","Callout");
+                                            }
+                                            if (phoneState.equals("RINGING")) {
+                                                callState = "Callin";
+                                                Log.i("phoneState","Callin");
+                                            }
+                                            callNum = callNum + 1;
+                                            callStartAt = System.currentTimeMillis();
+                                            FirstCallCell = true;
+                                            phoneState = "OFFHOOK";
+                                            startCallTime = logTimeSdf.format(LogDate);
+
+//                        FileMaker.write(JsonParser.phoneStateToJson(serviceContext.get()));
+                                            if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+                                                callID = teleManger.getDeviceId().concat((sdf.format(LogDate)));//hank add callID 2016/09/12
+                                            }
+                                            break;
+
+                                        case TelephonyManager.CALL_STATE_RINGING:
+                                            phoneState = "RINGING";
+                                            callState = "RINGING";
+                                            break;
+                                    }
+                                }
+                            }).start();
+
+                            if(count == ROUND){
+
+                                try {
+                                    write_file.write_testTime("time_lib","\n");
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+
+                                type = type + 1;
+                                count = 0;
+                            }
+                            if(first_ && type==6){
+                                first_=false;
+                                Log.i("test_time", String.valueOf(test_time));
+                                try {
+                                    write_file.write_testTime("time_lib",(end-start)+"");
+                                    write_file.write_testTime("time_lib",",");
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                                teleManger.listen(this, LISTEN_NONE);
+                                count = count+1;
+                            }
+
+                        }
+                    };
+                    teleManger.listen(psPhoneStateListener, LISTEN_CALL_STATE);
+
+
+                }
+
+                taskHandler.postDelayed(repeatativeTaskRunnable, 1500);
+            }
+
+        };
+        startHandler();
+
+//        test_wifi,
+        long sum = 0;
+        int count = 10;
+        for(int i = 0; i<count; i++){
+
+//            wifi
+//            start = System.nanoTime();
+//            WiFiInfo wifiInfo;
+//            wifiInfo = new WiFiInfo(this);
+//            wifiInfo.getWiFiInfo();
+//            end = System.nanoTime();
+//            test_time = end-start;
+//            Log.i("test_time", String.valueOf(test_time));
+//            sensor
+//            start = System.nanoTime();
+//            sr =  new SensorInfo(this);
+//            sr.startService(new DataListener(sr){
+//                @Override
+//                public void onDataReceived() {
+//                    end = System.nanoTime();
+//                    if(first_time_flag){
+//                        test_time = end-start;
+//                        Log.i("test_time", String.valueOf(test_time));
+//                        first_time_flag=false;
+//                        sr.stopService();
+//                    }
+//                }
+//            });
+//            sr.stopService();
+
+
+//            start = System.nanoTime();
+//            networkstate = new NetworkState(this);
+//            networkstate.getNetworkType();
+//            end = System.nanoTime();
+//            test_time = end-start;
+//            Log.i("test_time", String.valueOf(test_time));
+//            start = System.nanoTime();
+
+        }
+        /////////////////////
+
+        //////////////////////
+        sum = 0;
+        count = 10;
+        for(int i = 0; i<count; i++){
+
+
+
+            //wifi
+//            start = System.nanoTime();
+//            WifiManager wifi = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
+//            WifiInfo wifiInfo = wifi.getConnectionInfo();
+//            wifiInfo.getSSID();
+//            end = System.nanoTime();
+//            test_time = end - start;
+//            Log.i("test_time", String.valueOf(test_time));
+            //sensor
+
+
+
+//            networkstate
+//            start = System.nanoTime();
+//            connectivityManager = (ConnectivityManager)this.getSystemService(CONNECTIVITY_SERVICE);
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+//                nw = connectivityManager.getActiveNetwork();
+//                actNw = connectivityManager.getNetworkCapabilities(nw);
+//            }
+//            else {
+//                nwInfo = connectivityManager.getActiveNetworkInfo();
+//            }
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+//                Network nw = connectivityManager.getActiveNetwork();
+//                NetworkCapabilities actNw = connectivityManager.getNetworkCapabilities(nw);
+//                if (actNw != null) {
+//                    if (actNw.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+//                        Network_type = "MOBILE";
+//                        Log.d("networkstateTest", "mobile") ;
+//
+//                    } else if (actNw.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+//                        Network_type = "WIFI";
+//                        Log.d("networkstateTest", "wifi") ;
+//
+//                    }  else if (actNw.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)){
+//                        Network_type = "ETHERNET";
+//
+//                    }
+//                    else{
+//                        Network_type = null;
+//
+//                    }
+//
+//                }
+//                else {
+//                    if(nwInfo.getTypeName()!=null) {
+//                        Network_type = nwInfo.getTypeName();
+//
+//                    }
+//                    else{
+//                        Network_type = "null";
+//                    }
+//
+//                }
+//            }
+//            end = System.nanoTime();
+//            test_time = end - start;
+//            Log.i("test_time", String.valueOf(test_time));
+
+//              CellularInfo
+
+        }
+        /////////////////////
+
+        //////////////////////
+
+
+
+
+
+        /////////
+    }
+    public static boolean hasPermissions(Context context, String... permissions) {
+        if (context != null && permissions != null) {
+            for (String permission : permissions) {
+                if (ActivityCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+    //test
+    void startHandler() {
+        taskHandler.postDelayed(repeatativeTaskRunnable, 5 * 100);
+    }
+
+    void stopHandler() {
+        taskHandler.removeCallbacks(repeatativeTaskRunnable);
+    }
+
+
+}

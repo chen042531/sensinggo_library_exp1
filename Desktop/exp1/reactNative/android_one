@@ -1,0 +1,94 @@
+import * as React from 'react';
+import { NativeEventEmitter, StyleSheet, View, Text, TouchableOpacity, PermissionsAndroid } from 'react-native';
+import Sensinggo from 'sensinggo';
+
+export default function App() {
+  const [result, setResult] = React.useState<number | undefined>();
+  
+  const requestCameraPermission = async () => {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: "Cool Photo App Camera Permission",
+          message:
+          "Cool Photo App needs access to your camera " +
+          "so you can take awesome pictures.",
+          buttonNeutral: "Ask Me Later",
+          buttonNegative: "Cancel",
+          buttonPositive: "OK"
+        }
+      );
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        console.log("You can use the camera");
+      } else {
+        console.log("Camera permission denied");
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  React.useEffect(() => {
+    Sensinggo.multiply(11, 9).then(setResult);
+  }, []);
+  // Sensinggo.getMagnetometer();
+  
+  // Sensinggo.WiFiInfo().then(function (fulfilled) {
+  //   console.log("ggg servingChan",fulfilled["servingChan"]);
+  // })
+  // .catch(function (error) {
+  //   console.log(error.message)
+  // })
+  requestCameraPermission();
+  console.log("ggg ggg");
+  var sum = 0;
+  var count = 10;
+  for(var i=0;i<count;i++){
+    var start = 0;
+    var end = 0;
+    start = Date.now();
+    Sensinggo.WiFiInfo().then(function (fulfilled) {
+      end = Date.now();
+      // console.log("ggg ggg");
+      // console.log(end);
+      // console.log(start);
+      sum = sum+(end-start);
+      console.log("wifi",end-start);
+    })
+    
+  }
+  // console.log("ggg wifi",sum);
+  
+  sum = 0;
+  var count = 10;
+  for(var i=0;i<count;i++){
+    var start = 0;
+    var end = 0;
+    
+    start = Date.now();
+    Sensinggo.networkState().then(function (fulfilled) {
+      end = Date.now();
+      // console.log("ggg ggg");
+      // console.log(end);
+      // console.log(start);
+      sum = sum+(end-start);
+      console.log("sumsum",end-start);
+    })
+    
+  }
+  // console.log("ggg networkstate",sum);
+  return (
+    <View style={styles.container}>
+      <Text>Restyy: {result}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
